@@ -1,6 +1,6 @@
 ![](https://badgen.net/badge/Editor.js/v2.0/blue)
 
-# Paragraph Tool for Editor.js
+# Paragraph_i18n Tool for Editor.js
 
 Basic text Tool for the [Editor.js](https://ifmo.su/editor).
 
@@ -9,19 +9,18 @@ Basic text Tool for the [Editor.js](https://ifmo.su/editor).
 Get the package
 
 ```shell
-yarn add @editorjs/paragraph
+yarn add @zeainc/editorjs_paragraph_i18n
 ```
 
 Include module at your application
 
 ```javascript
-import Paragraph from '@editorjs/paragraph';
+import Paragraph_i18n from '@zeainc/editorjs_paragraph_i18n';
 ```
 
 ## Usage
 
-The Paragraph tool is included at editor.js by default. So you don't need to connect it manually.
-If you want to connect your customized version of this tool, do not forget to use the [`defaultBlock`](https://editorjs.io/configuration#change-the-default-block)
+If you want to connect Paragraph_i18n, do not forget modify the [`defaultBlock`](https://editorjs.io/configuration#change-the-default-block)
 option of the editor config.
 
 Add a new Tool to the `tools` property of the Editor.js initial config.
@@ -33,7 +32,7 @@ var editor = new EditorJS({
   tools: {
     ...
     paragraph: {
-      class: Paragraph,
+      class: Paragraph_i18n,
       inlineToolbar: true,
     },
   }
@@ -44,26 +43,29 @@ var editor = new EditorJS({
 
 ## Config Params
 
-The Paragraph Tool supports these configuration parameters:
+The Paragraph_i18n Tool supports these configuration parameters:
 
-| Field | Type     | Description        |
-| ----- | -------- | ------------------ |
-| placeholder | `string` | The placeholder. Will be shown only in the first paragraph when the whole editor is empty.  |
-| preserveBlank | `boolean` | (default: `false`) Whether or not to keep blank paragraphs when saving editor data |
+| Field         | Type      | Description                                                                                |
+| ------------- | --------- | ------------------------------------------------------------------------------------------ |
+| placeholder   | `string`  | The placeholder. Will be shown only in the first paragraph when the whole editor is empty. |
+| preserveBlank | `boolean` | (default: `false`) Whether or not to keep blank paragraphs when saving editor data         |
 
 ## Output data
 
-| Field  | Type     | Description      |
-| ------ | -------- | ---------------- |
-| text   | `string` | paragraph's text |
-
+| Field | Type     | Description      |
+| ----- | -------- | ---------------- |
+| text  | `string` | paragraph's text |
 
 ```json
 {
-    "type" : "paragraph",
-    "data" : {
-        "text" : "Check out our projects on a <a href=\"https://github.com/codex-team\">GitHub page</a>.",
+  "type": "paragraph_i18n",
+  "data": {
+    "en": {
+      "text": "Check out our projects on a <a href=\"https://github.com/codex-team\">GitHub page</a>."
+    },
+    "fr": {
+      "text": "Découvrez nos projets sur <a href=\"https://github.com/codex-team\">GitHub page</a>."
     }
+  }
 }
 ```
-

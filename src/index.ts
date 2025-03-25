@@ -126,7 +126,7 @@ interface ParagraphCSS {
   wrapper: string;
 }
 
-export default class Paragraph {
+export default class Paragraph_i18n {
   /**
    * Default placeholder for Paragraph Tool
    *
@@ -214,7 +214,7 @@ export default class Paragraph {
      */
     this._placeholder = config.placeholder
       ? config.placeholder
-      : Paragraph.DEFAULT_PLACEHOLDER;
+      : Paragraph_i18n.DEFAULT_PLACEHOLDER;
     this._data = data ?? {};
     this._element = null;
     this._preserveBlank = config.preserveBlank ?? false;

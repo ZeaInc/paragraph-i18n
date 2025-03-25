@@ -1,29 +1,31 @@
 {
-  "name": "@editorjs/paragraph",
+  "name": "@zeainc/editorjs_paragraph_i18n",
   "version": "2.11.7",
   "keywords": [
     "codex editor",
     "paragraph",
+    "i18n",
+    "internationalization",
     "editor.js",
     "editorjs"
   ],
-  "description": "Paragraph Tool for Editor.js",
+  "description": "Paragraph_i18n Tool for Editor.js",
   "license": "MIT",
-  "repository": "https://github.com/editor-js/paragraph",
+  "repository": "https://github.com/ZeaInc/paragraph-i18n",
   "files": [
     "dist"
   ],
-  "main": "./dist/paragraph.umd.js",
-  "module": "./dist/paragraph.mjs",
+  "main": "./dist/paragraph_i18n.umd.js",
+  "module": "./dist/paragraph_i18n.mjs",
   "exports": {
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
-        "default": "./dist/paragraph.mjs"
+        "default": "./dist/paragraph_i18n.mjs"
       },
       "require": {
         "types": "./dist/index.d.ts",
-        "default": "./dist/paragraph.umd.js"
+        "default": "./dist/paragraph_i18n.umd.js"
       }
     }
   },
