@@ -26,11 +26,11 @@ import type {
  */
 
 /**
- * @typedef {object} ParagraphConfig
+ * @typedef {object} Paragraph_i18n_Config
  * @property {string} placeholder - placeholder for the empty paragraph
  * @property {boolean} preserveBlank - Whether or not to keep blank paragraphs when saving editor data
  */
-export interface ParagraphConfig extends ToolConfig {
+export interface Paragraph_i18n_Config extends ToolConfig {
   /**
    * Placeholder for the empty paragraph
    */
@@ -42,35 +42,53 @@ export interface ParagraphConfig extends ToolConfig {
   preserveBlank?: boolean;
 }
 
+type Language = 'en' | 'fr' | 'es';
+
+// A callback that leverages a translation service to translate text from one language to another.
+// The function should return a promise that resolves with the translated text.
+// e.g. https://cloud.google.com/translate/docs/reference/rest/v2/translate
+// or https://libretranslate.com/
+type LanguageTranslator = (
+  q: string,
+  source: Language,
+  target: Language
+) => Promise<string>;
+
 /**
- * @typedef {object} ParagraphData
+ * @typedef {object} Paragraph_i18n_Data
  * @description Tool's input and output data format
  * @property {string} text — Paragraph's content. Can include HTML tags: <a><b><i>
  */
-export interface ParagraphData {
+export interface Paragraph_i18n_Data {
   /**
    * Paragraph's content
    */
-  text: string;
+
+  translations: Record<
+    Language,
+    {
+      text: string;
+    }
+  >;
 }
 
 /**
- * @typedef {object} ParagraphParams
+ * @typedef {object} Paragraph_i18n_Params
  * @description Constructor params for the Paragraph tool, use to pass initial data and settings
- * @property {ParagraphData} data - Preload data for the paragraph.
- * @property {ParagraphConfig} config - The configuration for the paragraph.
+ * @property {Paragraph_i18n_Data} data - Preload data for the paragraph.
+ * @property {Paragraph_i18n_Config} config - The configuration for the paragraph.
  * @property {API} api - The Editor.js API.
  * @property {boolean} readOnly - Is paragraph is read-only.
  */
-interface ParagraphParams {
+interface Paragraph_i18n_Params {
   /**
    * Initial data for the paragraph
    */
-  data: ParagraphData;
+  data: Paragraph_i18n_Data;
   /**
    * Paragraph tool configuration
    */
-  config: ParagraphConfig;
+  config: Paragraph_i18n_Config;
   /**
    * Editor.js API
    */
@@ -79,6 +97,16 @@ interface ParagraphParams {
    * Is paragraph read-only.
    */
   readOnly: boolean;
+
+  /**
+   * Which language is currently active.
+   */
+  activeLanguage: 'en' | 'fr' | 'es';
+
+  /**
+   * Provide a trasnlation callback to the paragraph tool.
+   */
+  autoTranslate: LanguageTranslator;
 }
 
 /**
@@ -119,6 +147,10 @@ export default class Paragraph {
    */
   readOnly: boolean;
 
+  activeLanguage: 'en' | 'fr' | 'es';
+
+  autoTranslate: LanguageTranslator;
+
   /**
    * Paragraph Tool's CSS classes
    */
@@ -132,7 +164,7 @@ export default class Paragraph {
   /**
    * Paragraph's data
    */
-  private _data: ParagraphData;
+  private _data: Paragraph_i18n_Data;
 
   /**
    * Paragraph's main Element
@@ -148,14 +180,23 @@ export default class Paragraph {
    * Render plugin`s main Element and fill it with saved data
    *
    * @param {object} params - constructor params
-   * @param {ParagraphData} params.data - previously saved data
-   * @param {ParagraphConfig} params.config - user config for Tool
+   * @param {Paragraph_i18n_Data} params.data - previously saved data
+   * @param {Paragraph_i18n_Config} params.config - user config for Tool
    * @param {object} params.api - editor.js api
    * @param {boolean} readOnly - read only mode flag
    */
-  constructor({ data, config, api, readOnly }: ParagraphParams) {
+  constructor({
+    data,
+    config,
+    api,
+    readOnly,
+    activeLanguage,
+    autoTranslate,
+  }: Paragraph_i18n_Params) {
     this.api = api;
     this.readOnly = readOnly;
+    this.activeLanguage = activeLanguage;
+    this.autoTranslate = autoTranslate;
 
     this._CSS = {
       block: this.api.styles.block,
@@ -214,8 +255,11 @@ export default class Paragraph {
     div.contentEditable = 'false';
     div.dataset.placeholderActive = this.api.i18n.t(this._placeholder);
 
-    if (this._data.text) {
-      div.innerHTML = this._data.text;
+    if (
+      this._data.translations[this.activeLanguage] &&
+      this._data.translations[this.activeLanguage].text
+    ) {
+      div.innerHTML = this._data.translations[this.activeLanguage].text;
     }
 
     if (!this.readOnly) {
@@ -244,21 +288,22 @@ export default class Paragraph {
    * Method that specified how to merge two Text blocks.
    * Called by Editor.js by backspace at the beginning of the Block
    *
-   * @param {ParagraphData} data
+   * @param {Paragraph_i18n_Data} data
    * @public
    */
-  merge(data: ParagraphData): void {
+  merge(data: Paragraph_i18n_Data): void {
     if (!this._element) {
       return;
     }
 
-    this._data.text += data.text;
+    this._data.translations[this.activeLanguage].text +=
+      data.translations[this.activeLanguage].text;
 
     /**
      * We use appendChild instead of innerHTML to keep the links of the existing nodes
      * (for example, shadow caret)
      */
-    const fragment = makeFragment(data.text);
+    const fragment = makeFragment(data.translations[this.activeLanguage].text);
 
     this._element.appendChild(fragment);
 
@@ -269,14 +314,36 @@ export default class Paragraph {
    * Validate Paragraph block data:
    * - check for emptiness
    *
-   * @param {ParagraphData} savedData — data received after saving
+   * @param {Paragraph_i18n_Data} savedData — data received after saving
    * @returns {boolean} false if saved data is not correct, otherwise true
    * @public
    */
-  validate(savedData: ParagraphData): boolean {
-    if (savedData.text.trim() === '' && !this._preserveBlank) {
+  validate(savedData: Paragraph_i18n_Data): boolean {
+    if (
+      savedData.translations[this.activeLanguage].text.trim() === '' &&
+      !this._preserveBlank
+    ) {
       return false;
     }
+
+    return true;
+  }
+
+  async translate(targetLanguage: Language): Promise<boolean> {
+    if (!this.autoTranslate) {
+      return false;
+    }
+
+    const text = this._data.translations[this.activeLanguage].text;
+    const translatedText = await this.autoTranslate(
+      text,
+      this.activeLanguage,
+      targetLanguage
+    );
+    if (!this._data.translations[targetLanguage]) {
+      this._data.translations[targetLanguage] = { text: '' };
+    }
+    this._data.translations[targetLanguage].text = translatedText;
 
     return true;
   }
@@ -285,13 +352,14 @@ export default class Paragraph {
    * Extract Tool's data from the view
    *
    * @param {HTMLDivElement} toolsContent - Paragraph tools rendered view
-   * @returns {ParagraphData} - saved data
+   * @returns {Paragraph_i18n_Data} - saved data
    * @public
    */
-  save(toolsContent: HTMLDivElement): ParagraphData {
-    return {
-      text: toolsContent.innerHTML,
-    };
+  save(toolsContent: HTMLDivElement): Paragraph_i18n_Data {
+    return this._data;
+    // return {
+    //   text: toolsContent.innerHTML,
+    // };
   }
 
   /**
@@ -304,7 +372,7 @@ export default class Paragraph {
       text: event.detail.data.innerHTML,
     };
 
-    this._data = data;
+    this._data.translations[this.activeLanguage] = data;
 
     /**
      * We use requestAnimationFrame for performance purposes
@@ -313,7 +381,8 @@ export default class Paragraph {
       if (!this._element) {
         return;
       }
-      this._element.innerHTML = this._data.text || '';
+      this._element.innerHTML =
+        this._data.translations[this.activeLanguage].text || '';
     });
   }
 
