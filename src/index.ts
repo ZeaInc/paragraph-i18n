@@ -42,7 +42,7 @@ export interface Paragraph_i18n_Config extends ToolConfig {
   preserveBlank?: boolean;
 }
 
-type Language = 'en' | 'fr' | 'es';
+type Language = string;
 
 // A callback that leverages a translation service to translate text from one language to another.
 // The function should return a promise that resolves with the translated text.
@@ -54,6 +54,13 @@ type LanguageTranslator = (
   target: Language
 ) => Promise<string>;
 
+interface ParagraphData {
+  /**
+   * Paragraph's content
+   */
+  text: string;
+}
+
 /**
  * @typedef {object} Paragraph_i18n_Data
  * @description Tool's input and output data format
@@ -64,12 +71,7 @@ export interface Paragraph_i18n_Data {
    * Paragraph's content
    */
 
-  translations: Record<
-    Language,
-    {
-      text: string;
-    }
-  >;
+  translations: Record<string, ParagraphData>;
 }
 
 /**
@@ -164,7 +166,7 @@ export default class Paragraph_i18n {
   /**
    * Paragraph's data
    */
-  private _data: Paragraph_i18n_Data;
+  private _data: Paragraph_i18n_Data = { translations: {} };
 
   /**
    * Paragraph's main Element
@@ -215,7 +217,16 @@ export default class Paragraph_i18n {
     this._placeholder = config.placeholder
       ? config.placeholder
       : Paragraph_i18n.DEFAULT_PLACEHOLDER;
-    this._data = data ?? {};
+
+    if (data) {
+      // Upgrade non i18n data to i18n data
+      if (data.translations === undefined) {
+        this._data.translations[this.activeLanguage] =
+          data as unknown as ParagraphData;
+      } else {
+        this._data = data;
+      }
+    }
     this._element = null;
     this._preserveBlank = config.preserveBlank ?? false;
   }
