@@ -23,7 +23,7 @@ export interface Paragraph_i18n_Config extends ToolConfig {
      */
     preserveBlank?: boolean;
 }
-type Language = 'en' | 'fr' | 'es';
+type Language = string;
 type LanguageTranslator = (q: string, source: Language, target: Language) => Promise<string>;
 /**
  * @typedef {object} Paragraph_i18n_Data
@@ -34,9 +34,7 @@ export interface Paragraph_i18n_Data {
     /**
      * Paragraph's content
      */
-    translations: Record<Language, {
-        text: string;
-    }>;
+    translations: Record<string, string>;
 }
 /**
  * @typedef {object} Paragraph_i18n_Params
@@ -88,8 +86,8 @@ export default class Paragraph_i18n {
      * Is Paragraph Tool read-only
      */
     readOnly: boolean;
-    activeLanguage: 'en' | 'fr' | 'es';
-    autoTranslate: LanguageTranslator;
+    activeLanguage: Language;
+    autoTranslate: LanguageTranslator | null;
     /**
      * Paragraph Tool's CSS classes
      */
@@ -119,7 +117,7 @@ export default class Paragraph_i18n {
      * @param {object} params.api - editor.js api
      * @param {boolean} readOnly - read only mode flag
      */
-    constructor({ data, config, api, readOnly, activeLanguage, autoTranslate, }: Paragraph_i18n_Params);
+    constructor({ data, config, api, readOnly }: Paragraph_i18n_Params);
     /**
      * Check if text content is empty and set empty string to inner html.
      * We need this because some browsers (e.g. Safari) insert <br> into empty contenteditanle elements
@@ -201,5 +199,7 @@ export default class Paragraph_i18n {
      * @returns {ToolboxConfig} - Paragraph Toolbox Setting
      */
     static get toolbox(): ToolboxConfig;
+    static getActiveLanguage(): Language;
+    static setActiveLanguage(value: string): void;
 }
 export {};

@@ -44,6 +44,10 @@ export interface Paragraph_i18n_Config extends ToolConfig {
 
 type Language = string;
 
+let activeLanguage: Language = 'en';
+type Callback = () => void;
+const callbacks: Callback[] = [];
+
 // A callback that leverages a translation service to translate text from one language to another.
 // The function should return a promise that resolves with the translated text.
 // e.g. https://cloud.google.com/translate/docs/reference/rest/v2/translate
@@ -53,13 +57,6 @@ type LanguageTranslator = (
   source: Language,
   target: Language
 ) => Promise<string>;
-
-interface ParagraphData {
-  /**
-   * Paragraph's content
-   */
-  text: string;
-}
 
 /**
  * @typedef {object} Paragraph_i18n_Data
@@ -71,7 +68,7 @@ export interface Paragraph_i18n_Data {
    * Paragraph's content
    */
 
-  translations: Record<string, ParagraphData>;
+  translations: Record<string, string>;
 }
 
 /**
@@ -149,9 +146,9 @@ export default class Paragraph_i18n {
    */
   readOnly: boolean;
 
-  activeLanguage: 'en' | 'fr' | 'es';
+  activeLanguage: Language = 'en';
 
-  autoTranslate: LanguageTranslator;
+  autoTranslate: LanguageTranslator | null = null;
 
   /**
    * Paragraph Tool's CSS classes
@@ -187,18 +184,9 @@ export default class Paragraph_i18n {
    * @param {object} params.api - editor.js api
    * @param {boolean} readOnly - read only mode flag
    */
-  constructor({
-    data,
-    config,
-    api,
-    readOnly,
-    activeLanguage,
-    autoTranslate,
-  }: Paragraph_i18n_Params) {
+  constructor({ data, config, api, readOnly }: Paragraph_i18n_Params) {
     this.api = api;
     this.readOnly = readOnly;
-    this.activeLanguage = activeLanguage;
-    this.autoTranslate = autoTranslate;
 
     this._CSS = {
       block: this.api.styles.block,
@@ -222,13 +210,32 @@ export default class Paragraph_i18n {
       // Upgrade non i18n data to i18n data
       if (data.translations === undefined) {
         this._data.translations[this.activeLanguage] =
-          data as unknown as ParagraphData;
+          ((data as any).text as string) ?? '';
       } else {
-        this._data = data;
+        this._data.translations = data.translations;
       }
+    } else {
+      this._data.translations[this.activeLanguage] = '';
     }
+
+    if (this._data.translations[this.activeLanguage] == undefined) {
+      this._data.translations[this.activeLanguage] = '';
+    }
+
     this._element = null;
     this._preserveBlank = config.preserveBlank ?? false;
+
+    // Enable causing blocks to switch languages
+    callbacks.push(() => {
+      this.activeLanguage = activeLanguage;
+      window.requestAnimationFrame(() => {
+        if (!this._element) {
+          return;
+        }
+        this._element.innerHTML =
+          this._data.translations[this.activeLanguage] || '';
+      });
+    });
   }
 
   /**
@@ -266,11 +273,8 @@ export default class Paragraph_i18n {
     div.contentEditable = 'false';
     div.dataset.placeholderActive = this.api.i18n.t(this._placeholder);
 
-    if (
-      this._data.translations[this.activeLanguage] &&
-      this._data.translations[this.activeLanguage].text
-    ) {
-      div.innerHTML = this._data.translations[this.activeLanguage].text;
+    if (this._data.translations[this.activeLanguage]) {
+      div.innerHTML = this._data.translations[this.activeLanguage];
     }
 
     if (!this.readOnly) {
@@ -307,14 +311,14 @@ export default class Paragraph_i18n {
       return;
     }
 
-    this._data.translations[this.activeLanguage].text +=
-      data.translations[this.activeLanguage].text;
+    this._data.translations[this.activeLanguage] +=
+      data.translations[this.activeLanguage];
 
     /**
      * We use appendChild instead of innerHTML to keep the links of the existing nodes
      * (for example, shadow caret)
      */
-    const fragment = makeFragment(data.translations[this.activeLanguage].text);
+    const fragment = makeFragment(data.translations[this.activeLanguage]);
 
     this._element.appendChild(fragment);
 
@@ -331,7 +335,7 @@ export default class Paragraph_i18n {
    */
   validate(savedData: Paragraph_i18n_Data): boolean {
     if (
-      savedData.translations[this.activeLanguage].text.trim() === '' &&
+      savedData.translations[this.activeLanguage].trim() === '' &&
       !this._preserveBlank
     ) {
       return false;
@@ -345,16 +349,16 @@ export default class Paragraph_i18n {
       return false;
     }
 
-    const text = this._data.translations[this.activeLanguage].text;
+    const text = this._data.translations[this.activeLanguage];
     const translatedText = await this.autoTranslate(
       text,
       this.activeLanguage,
       targetLanguage
     );
     if (!this._data.translations[targetLanguage]) {
-      this._data.translations[targetLanguage] = { text: '' };
+      this._data.translations[targetLanguage] = '';
     }
-    this._data.translations[targetLanguage].text = translatedText;
+    this._data.translations[targetLanguage] = translatedText;
 
     return true;
   }
@@ -367,10 +371,8 @@ export default class Paragraph_i18n {
    * @public
    */
   save(toolsContent: HTMLDivElement): Paragraph_i18n_Data {
+    this._data.translations[this.activeLanguage] = toolsContent.innerHTML;
     return this._data;
-    // return {
-    //   text: toolsContent.innerHTML,
-    // };
   }
 
   /**
@@ -383,7 +385,7 @@ export default class Paragraph_i18n {
       text: event.detail.data.innerHTML,
     };
 
-    this._data.translations[this.activeLanguage] = data;
+    this._data.translations[this.activeLanguage] = data.text;
 
     /**
      * We use requestAnimationFrame for performance purposes
@@ -393,7 +395,7 @@ export default class Paragraph_i18n {
         return;
       }
       this._element.innerHTML =
-        this._data.translations[this.activeLanguage].text || '';
+        this._data.translations[this.activeLanguage] || '';
     });
   }
 
@@ -451,5 +453,16 @@ export default class Paragraph_i18n {
       icon: IconText,
       title: 'Text',
     };
+  }
+
+  static getActiveLanguage(): Language {
+    return activeLanguage;
+  }
+
+  static setActiveLanguage(value: string) {
+    activeLanguage = value;
+    callbacks.forEach((callback) => {
+      callback();
+    });
   }
 }
