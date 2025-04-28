@@ -98,11 +98,6 @@ interface Paragraph_i18n_Params {
   readOnly: boolean;
 
   /**
-   * Which language is currently active.
-   */
-  activeLanguage: 'en' | 'fr' | 'es';
-
-  /**
    * Provide a trasnlation callback to the paragraph tool.
    */
   autoTranslate: LanguageTranslator;
@@ -145,10 +140,6 @@ export default class Paragraph_i18n {
    * Is Paragraph Tool read-only
    */
   readOnly: boolean;
-
-  activeLanguage: Language = 'en';
-
-  autoTranslate: LanguageTranslator | null = null;
 
   /**
    * Paragraph Tool's CSS classes
@@ -209,17 +200,17 @@ export default class Paragraph_i18n {
     if (data) {
       // Upgrade non i18n data to i18n data
       if (data.translations === undefined) {
-        this._data.translations[this.activeLanguage] =
+        this._data.translations[activeLanguage] =
           ((data as any).text as string) ?? '';
       } else {
         this._data.translations = data.translations;
       }
     } else {
-      this._data.translations[this.activeLanguage] = '';
+      this._data.translations[activeLanguage] = '';
     }
 
-    if (this._data.translations[this.activeLanguage] == undefined) {
-      this._data.translations[this.activeLanguage] = '';
+    if (this._data.translations[activeLanguage] == undefined) {
+      this._data.translations[activeLanguage] = '';
     }
 
     this._element = null;
@@ -227,13 +218,11 @@ export default class Paragraph_i18n {
 
     // Enable causing blocks to switch languages
     callbacks.push(() => {
-      this.activeLanguage = activeLanguage;
       window.requestAnimationFrame(() => {
         if (!this._element) {
           return;
         }
-        this._element.innerHTML =
-          this._data.translations[this.activeLanguage] || '';
+        this._element.innerHTML = this._data.translations[activeLanguage] || '';
       });
     });
   }
@@ -273,8 +262,8 @@ export default class Paragraph_i18n {
     div.contentEditable = 'false';
     div.dataset.placeholderActive = this.api.i18n.t(this._placeholder);
 
-    if (this._data.translations[this.activeLanguage]) {
-      div.innerHTML = this._data.translations[this.activeLanguage];
+    if (this._data.translations[activeLanguage]) {
+      div.innerHTML = this._data.translations[activeLanguage];
     }
 
     if (!this.readOnly) {
@@ -311,14 +300,14 @@ export default class Paragraph_i18n {
       return;
     }
 
-    this._data.translations[this.activeLanguage] +=
-      data.translations[this.activeLanguage];
+    this._data.translations[activeLanguage] +=
+      data.translations[activeLanguage];
 
     /**
      * We use appendChild instead of innerHTML to keep the links of the existing nodes
      * (for example, shadow caret)
      */
-    const fragment = makeFragment(data.translations[this.activeLanguage]);
+    const fragment = makeFragment(data.translations[activeLanguage]);
 
     this._element.appendChild(fragment);
 
@@ -335,30 +324,11 @@ export default class Paragraph_i18n {
    */
   validate(savedData: Paragraph_i18n_Data): boolean {
     if (
-      savedData.translations[this.activeLanguage].trim() === '' &&
+      savedData.translations[activeLanguage].trim() === '' &&
       !this._preserveBlank
     ) {
       return false;
     }
-
-    return true;
-  }
-
-  async translate(targetLanguage: Language): Promise<boolean> {
-    if (!this.autoTranslate) {
-      return false;
-    }
-
-    const text = this._data.translations[this.activeLanguage];
-    const translatedText = await this.autoTranslate(
-      text,
-      this.activeLanguage,
-      targetLanguage
-    );
-    if (!this._data.translations[targetLanguage]) {
-      this._data.translations[targetLanguage] = '';
-    }
-    this._data.translations[targetLanguage] = translatedText;
 
     return true;
   }
@@ -371,7 +341,7 @@ export default class Paragraph_i18n {
    * @public
    */
   save(toolsContent: HTMLDivElement): Paragraph_i18n_Data {
-    this._data.translations[this.activeLanguage] = toolsContent.innerHTML;
+    this._data.translations[activeLanguage] = toolsContent.innerHTML;
     return this._data;
   }
 
@@ -385,7 +355,7 @@ export default class Paragraph_i18n {
       text: event.detail.data.innerHTML,
     };
 
-    this._data.translations[this.activeLanguage] = data.text;
+    this._data.translations[activeLanguage] = data.text;
 
     /**
      * We use requestAnimationFrame for performance purposes
@@ -394,8 +364,7 @@ export default class Paragraph_i18n {
       if (!this._element) {
         return;
       }
-      this._element.innerHTML =
-        this._data.translations[this.activeLanguage] || '';
+      this._element.innerHTML = this._data.translations[activeLanguage] || '';
     });
   }
 
