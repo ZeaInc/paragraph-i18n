@@ -26,11 +26,11 @@ import type {
  */
 
 /**
- * @typedef {object} ParagraphConfig
+ * @typedef {object} Paragraph_i18n_Config
  * @property {string} placeholder - placeholder for the empty paragraph
  * @property {boolean} preserveBlank - Whether or not to keep blank paragraphs when saving editor data
  */
-export interface ParagraphConfig extends ToolConfig {
+export interface Paragraph_i18n_Config extends ToolConfig {
   /**
    * Placeholder for the empty paragraph
    */
@@ -42,35 +42,52 @@ export interface ParagraphConfig extends ToolConfig {
   preserveBlank?: boolean;
 }
 
+type Language = string;
+
+let activeLanguage: Language = 'en';
+type Callback = () => void;
+const callbacks: Callback[] = [];
+
+// A callback that leverages a translation service to translate text from one language to another.
+// The function should return a promise that resolves with the translated text.
+// e.g. https://cloud.google.com/translate/docs/reference/rest/v2/translate
+// or https://libretranslate.com/
+type LanguageTranslator = (
+  q: string,
+  source: Language,
+  target: Language
+) => Promise<string>;
+
 /**
- * @typedef {object} ParagraphData
+ * @typedef {object} Paragraph_i18n_Data
  * @description Tool's input and output data format
  * @property {string} text — Paragraph's content. Can include HTML tags: <a><b><i>
  */
-export interface ParagraphData {
+export interface Paragraph_i18n_Data {
   /**
    * Paragraph's content
    */
-  text: string;
+
+  translations: Record<string, string>;
 }
 
 /**
- * @typedef {object} ParagraphParams
+ * @typedef {object} Paragraph_i18n_Params
  * @description Constructor params for the Paragraph tool, use to pass initial data and settings
- * @property {ParagraphData} data - Preload data for the paragraph.
- * @property {ParagraphConfig} config - The configuration for the paragraph.
+ * @property {Paragraph_i18n_Data} data - Preload data for the paragraph.
+ * @property {Paragraph_i18n_Config} config - The configuration for the paragraph.
  * @property {API} api - The Editor.js API.
  * @property {boolean} readOnly - Is paragraph is read-only.
  */
-interface ParagraphParams {
+interface Paragraph_i18n_Params {
   /**
    * Initial data for the paragraph
    */
-  data: ParagraphData;
+  data: Paragraph_i18n_Data;
   /**
    * Paragraph tool configuration
    */
-  config: ParagraphConfig;
+  config: Paragraph_i18n_Config;
   /**
    * Editor.js API
    */
@@ -79,6 +96,11 @@ interface ParagraphParams {
    * Is paragraph read-only.
    */
   readOnly: boolean;
+
+  /**
+   * Provide a trasnlation callback to the paragraph tool.
+   */
+  autoTranslate: LanguageTranslator;
 }
 
 /**
@@ -98,7 +120,7 @@ interface ParagraphCSS {
   wrapper: string;
 }
 
-export default class Paragraph {
+export default class Paragraph_i18n {
   /**
    * Default placeholder for Paragraph Tool
    *
@@ -132,7 +154,7 @@ export default class Paragraph {
   /**
    * Paragraph's data
    */
-  private _data: ParagraphData;
+  private _data: Paragraph_i18n_Data = { translations: {} };
 
   /**
    * Paragraph's main Element
@@ -148,12 +170,12 @@ export default class Paragraph {
    * Render plugin`s main Element and fill it with saved data
    *
    * @param {object} params - constructor params
-   * @param {ParagraphData} params.data - previously saved data
-   * @param {ParagraphConfig} params.config - user config for Tool
+   * @param {Paragraph_i18n_Data} params.data - previously saved data
+   * @param {Paragraph_i18n_Config} params.config - user config for Tool
    * @param {object} params.api - editor.js api
    * @param {boolean} readOnly - read only mode flag
    */
-  constructor({ data, config, api, readOnly }: ParagraphParams) {
+  constructor({ data, config, api, readOnly }: Paragraph_i18n_Params) {
     this.api = api;
     this.readOnly = readOnly;
 
@@ -173,10 +195,26 @@ export default class Paragraph {
      */
     this._placeholder = config.placeholder
       ? config.placeholder
-      : Paragraph.DEFAULT_PLACEHOLDER;
-    this._data = data ?? {};
+      : Paragraph_i18n.DEFAULT_PLACEHOLDER;
+
+    if (data) {
+      this._data = this.normalizeData(data);
+    } else {
+      this._data.translations[activeLanguage] = '';
+    }
+
     this._element = null;
     this._preserveBlank = config.preserveBlank ?? false;
+
+    // Enable causing blocks to switch languages
+    callbacks.push(() => {
+      window.requestAnimationFrame(() => {
+        if (!this._element) {
+          return;
+        }
+        this._element.innerHTML = this._data.translations[activeLanguage] || '';
+      });
+    });
   }
 
   /**
@@ -214,8 +252,8 @@ export default class Paragraph {
     div.contentEditable = 'false';
     div.dataset.placeholderActive = this.api.i18n.t(this._placeholder);
 
-    if (this._data.text) {
-      div.innerHTML = this._data.text;
+    if (this._data.translations[activeLanguage]) {
+      div.innerHTML = this._data.translations[activeLanguage];
     }
 
     if (!this.readOnly) {
@@ -244,21 +282,22 @@ export default class Paragraph {
    * Method that specified how to merge two Text blocks.
    * Called by Editor.js by backspace at the beginning of the Block
    *
-   * @param {ParagraphData} data
+   * @param {Paragraph_i18n_Data} data
    * @public
    */
-  merge(data: ParagraphData): void {
+  merge(data: Paragraph_i18n_Data): void {
     if (!this._element) {
       return;
     }
 
-    this._data.text += data.text;
+    this._data.translations[activeLanguage] +=
+      data.translations[activeLanguage];
 
     /**
      * We use appendChild instead of innerHTML to keep the links of the existing nodes
      * (for example, shadow caret)
      */
-    const fragment = makeFragment(data.text);
+    const fragment = makeFragment(data.translations[activeLanguage]);
 
     this._element.appendChild(fragment);
 
@@ -269,12 +308,15 @@ export default class Paragraph {
    * Validate Paragraph block data:
    * - check for emptiness
    *
-   * @param {ParagraphData} savedData — data received after saving
+   * @param {Paragraph_i18n_Data} savedData — data received after saving
    * @returns {boolean} false if saved data is not correct, otherwise true
    * @public
    */
-  validate(savedData: ParagraphData): boolean {
-    if (savedData.text.trim() === '' && !this._preserveBlank) {
+  validate(savedData: Paragraph_i18n_Data): boolean {
+    if (
+      savedData.translations[activeLanguage].trim() === '' &&
+      !this._preserveBlank
+    ) {
       return false;
     }
 
@@ -285,13 +327,12 @@ export default class Paragraph {
    * Extract Tool's data from the view
    *
    * @param {HTMLDivElement} toolsContent - Paragraph tools rendered view
-   * @returns {ParagraphData} - saved data
+   * @returns {Paragraph_i18n_Data} - saved data
    * @public
    */
-  save(toolsContent: HTMLDivElement): ParagraphData {
-    return {
-      text: toolsContent.innerHTML,
-    };
+  save(toolsContent: HTMLDivElement): Paragraph_i18n_Data {
+    this._data.translations[activeLanguage] = toolsContent.innerHTML;
+    return this._data;
   }
 
   /**
@@ -304,7 +345,7 @@ export default class Paragraph {
       text: event.detail.data.innerHTML,
     };
 
-    this._data = data;
+    this._data.translations[activeLanguage] = data.text;
 
     /**
      * We use requestAnimationFrame for performance purposes
@@ -313,18 +354,68 @@ export default class Paragraph {
       if (!this._element) {
         return;
       }
-      this._element.innerHTML = this._data.text || '';
+      this._element.innerHTML = this._data.translations[activeLanguage] || '';
     });
+  }
+
+  /**
+   * Normalize input data
+   *
+   * @param {Header_i18n_Data} data - saved data to process
+   *
+   * @returns {Header_i18n_Data}
+   * @private
+   */
+  normalizeData(data: Paragraph_i18n_Data | {}): Paragraph_i18n_Data {
+    if (typeof data === 'string') {
+      const text = data;
+      return {
+        translations: { [activeLanguage]: text },
+      };
+    }
+    // @ts-ignore
+    else if (typeof data.text === 'string') {
+      // @ts-ignore
+      const text = data.text;
+
+      return {
+        translations: { [activeLanguage]: text },
+      };
+    }
+    // @ts-ignore
+    else if (typeof data.translations === 'object') {
+      const result = data as Paragraph_i18n_Data;
+      if (result.translations[activeLanguage] == undefined) {
+        result.translations[activeLanguage] = '';
+      }
+      return result;
+    }
+
+    console.warn('Paragraph_i18n: unable to normalize data:', data);
+    return {
+      translations: { [activeLanguage]: '' },
+    };
   }
 
   /**
    * Enable Conversion Toolbar. Paragraph can be converted to/from other tools
    * @returns {ConversionConfig}
    */
-  static get conversionConfig(): ConversionConfig {
+  static get conversionConfig() {
     return {
-      export: 'text', // to convert Paragraph to other block, use 'text' property of saved data
-      import: 'text', // to covert other block's exported string to Paragraph, fill 'text' property of tool data
+      export: (data: Paragraph_i18n_Data) => {
+        return data.translations[activeLanguage];
+      },
+      import: (data: any) => {
+        console.log(data);
+        if (typeof data === 'string') {
+          return data;
+        } else if (data.text) {
+          return data.text;
+        } else if (data.translations) {
+          return data.translations[activeLanguage];
+        }
+      },
     };
   }
 
@@ -371,5 +462,16 @@ export default class Paragraph {
       icon: IconText,
       title: 'Text',
     };
+  }
+
+  static getActiveLanguage(): Language {
+    return activeLanguage;
+  }
+
+  static setActiveLanguage(value: string) {
+    activeLanguage = value;
+    callbacks.forEach((callback) => {
+      callback();
+    });
   }
 }

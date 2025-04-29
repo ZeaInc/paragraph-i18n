@@ -1,4 +1,4 @@
-import { API, ConversionConfig, HTMLPasteEvent, PasteConfig, SanitizerConfig, ToolConfig, ToolboxConfig } from '@editorjs/editorjs';
+import { API, HTMLPasteEvent, PasteConfig, SanitizerConfig, ToolConfig, ToolboxConfig } from '@editorjs/editorjs';
 
 /**
  * Base Paragraph Block for the Editor.js.
@@ -9,11 +9,11 @@ import { API, ConversionConfig, HTMLPasteEvent, PasteConfig, SanitizerConfig, To
  * @license The MIT License (MIT)
  */
 /**
- * @typedef {object} ParagraphConfig
+ * @typedef {object} Paragraph_i18n_Config
  * @property {string} placeholder - placeholder for the empty paragraph
  * @property {boolean} preserveBlank - Whether or not to keep blank paragraphs when saving editor data
  */
-export interface ParagraphConfig extends ToolConfig {
+export interface Paragraph_i18n_Config extends ToolConfig {
     /**
      * Placeholder for the empty paragraph
      */
@@ -23,34 +23,36 @@ export interface ParagraphConfig extends ToolConfig {
      */
     preserveBlank?: boolean;
 }
+type Language = string;
+type LanguageTranslator = (q: string, source: Language, target: Language) => Promise<string>;
 /**
- * @typedef {object} ParagraphData
+ * @typedef {object} Paragraph_i18n_Data
  * @description Tool's input and output data format
  * @property {string} text — Paragraph's content. Can include HTML tags: <a><b><i>
  */
-export interface ParagraphData {
+export interface Paragraph_i18n_Data {
     /**
      * Paragraph's content
      */
-    text: string;
+    translations: Record<string, string>;
 }
 /**
- * @typedef {object} ParagraphParams
+ * @typedef {object} Paragraph_i18n_Params
  * @description Constructor params for the Paragraph tool, use to pass initial data and settings
- * @property {ParagraphData} data - Preload data for the paragraph.
- * @property {ParagraphConfig} config - The configuration for the paragraph.
+ * @property {Paragraph_i18n_Data} data - Preload data for the paragraph.
+ * @property {Paragraph_i18n_Config} config - The configuration for the paragraph.
  * @property {API} api - The Editor.js API.
  * @property {boolean} readOnly - Is paragraph is read-only.
  */
-interface ParagraphParams {
+interface Paragraph_i18n_Params {
     /**
      * Initial data for the paragraph
      */
-    data: ParagraphData;
+    data: Paragraph_i18n_Data;
     /**
      * Paragraph tool configuration
      */
-    config: ParagraphConfig;
+    config: Paragraph_i18n_Config;
     /**
      * Editor.js API
      */
@@ -59,8 +61,12 @@ interface ParagraphParams {
      * Is paragraph read-only.
      */
     readOnly: boolean;
+    /**
+     * Provide a trasnlation callback to the paragraph tool.
+     */
+    autoTranslate: LanguageTranslator;
 }
-export default class Paragraph {
+export default class Paragraph_i18n {
     /**
      * Default placeholder for Paragraph Tool
      *
@@ -100,12 +106,12 @@ export default class Paragraph {
      * Render plugin`s main Element and fill it with saved data
      *
      * @param {object} params - constructor params
-     * @param {ParagraphData} params.data - previously saved data
-     * @param {ParagraphConfig} params.config - user config for Tool
+     * @param {Paragraph_i18n_Data} params.data - previously saved data
+     * @param {Paragraph_i18n_Config} params.config - user config for Tool
      * @param {object} params.api - editor.js api
      * @param {boolean} readOnly - read only mode flag
      */
-    constructor({ data, config, api, readOnly }: ParagraphParams);
+    constructor({ data, config, api, readOnly }: Paragraph_i18n_Params);
     /**
      * Check if text content is empty and set empty string to inner html.
      * We need this because some browsers (e.g. Safari) insert <br> into empty contenteditanle elements
@@ -130,27 +136,27 @@ export default class Paragraph {
      * Method that specified how to merge two Text blocks.
      * Called by Editor.js by backspace at the beginning of the Block
      *
-     * @param {ParagraphData} data
+     * @param {Paragraph_i18n_Data} data
      * @public
      */
-    merge(data: ParagraphData): void;
+    merge(data: Paragraph_i18n_Data): void;
     /**
      * Validate Paragraph block data:
      * - check for emptiness
      *
-     * @param {ParagraphData} savedData — data received after saving
+     * @param {Paragraph_i18n_Data} savedData — data received after saving
      * @returns {boolean} false if saved data is not correct, otherwise true
      * @public
      */
-    validate(savedData: ParagraphData): boolean;
+    validate(savedData: Paragraph_i18n_Data): boolean;
     /**
      * Extract Tool's data from the view
      *
      * @param {HTMLDivElement} toolsContent - Paragraph tools rendered view
-     * @returns {ParagraphData} - saved data
+     * @returns {Paragraph_i18n_Data} - saved data
      * @public
      */
-    save(toolsContent: HTMLDivElement): ParagraphData;
+    save(toolsContent: HTMLDivElement): Paragraph_i18n_Data;
     /**
      * On paste callback fired from Editor.
      *
@@ -158,10 +164,22 @@ export default class Paragraph {
      */
     onPaste(event: HTMLPasteEvent): void;
     /**
+     * Normalize input data
+     *
+     * @param {Header_i18n_Data} data - saved data to process
+     *
+     * @returns {Header_i18n_Data}
+     * @private
+     */
+    normalizeData(data: Paragraph_i18n_Data | {}): Paragraph_i18n_Data;
+    /**
      * Enable Conversion Toolbar. Paragraph can be converted to/from other tools
      * @returns {ConversionConfig}
      */
-    static get conversionConfig(): ConversionConfig;
+    static get conversionConfig(): {
+        export: (data: Paragraph_i18n_Data) => string;
+        import: (data: any) => any;
+    };
     /**
      * Sanitizer rules
      * @returns {SanitizerConfig} - Edtior.js sanitizer config
@@ -186,5 +204,7 @@ export default class Paragraph {
      * @returns {ToolboxConfig} - Paragraph Toolbox Setting
      */
     static get toolbox(): ToolboxConfig;
+    static getActiveLanguage(): Language;
+    static setActiveLanguage(value: string): void;
 }
 export {};
