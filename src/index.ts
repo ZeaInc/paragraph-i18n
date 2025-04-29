@@ -198,18 +198,8 @@ export default class Paragraph_i18n {
       : Paragraph_i18n.DEFAULT_PLACEHOLDER;
 
     if (data) {
-      // Upgrade non i18n data to i18n data
-      if (data.translations === undefined) {
-        this._data.translations[activeLanguage] =
-          ((data as any).text as string) ?? '';
-      } else {
-        this._data.translations = data.translations;
-      }
+      this._data = this.normalizeData(data);
     } else {
-      this._data.translations[activeLanguage] = '';
-    }
-
-    if (this._data.translations[activeLanguage] == undefined) {
       this._data.translations[activeLanguage] = '';
     }
 
@@ -369,13 +359,63 @@ export default class Paragraph_i18n {
   }
 
   /**
+   * Normalize input data
+   *
+   * @param {Header_i18n_Data} data - saved data to process
+   *
+   * @returns {Header_i18n_Data}
+   * @private
+   */
+  normalizeData(data: Paragraph_i18n_Data | {}): Paragraph_i18n_Data {
+    if (typeof data === 'string') {
+      const text = data;
+      return {
+        translations: { [activeLanguage]: text },
+      };
+    }
+    // @ts-ignore
+    else if (typeof data.text === 'string') {
+      // @ts-ignore
+      const text = data.text;
+
+      return {
+        translations: { [activeLanguage]: text },
+      };
+    }
+    // @ts-ignore
+    else if (typeof data.translations === 'object') {
+      const result = data as Paragraph_i18n_Data;
+      if (result.translations[activeLanguage] == undefined) {
+        result.translations[activeLanguage] = '';
+      }
+      return result;
+    }
+
+    console.warn('Paragraph_i18n: unable to normalize data:', data);
+    return {
+      translations: { [activeLanguage]: '' },
+    };
+  }
+
+  /**
    * Enable Conversion Toolbar. Paragraph can be converted to/from other tools
    * @returns {ConversionConfig}
    */
-  static get conversionConfig(): ConversionConfig {
+  static get conversionConfig() {
     return {
-      export: 'text', // to convert Paragraph to other block, use 'text' property of saved data
-      import: 'text', // to covert other block's exported string to Paragraph, fill 'text' property of tool data
+      export: (data: Paragraph_i18n_Data) => {
+        return data.translations[activeLanguage];
+      },
+      import: (data: any) => {
+        console.log(data);
+        if (typeof data === 'string') {
+          return data;
+        } else if (data.text) {
+          return data.text;
+        } else if (data.translations) {
+          return data.translations[activeLanguage];
+        }
+      },
     };
   }
 

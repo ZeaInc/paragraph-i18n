@@ -1,10 +1,11 @@
 {
-  "name": "@zeainc/editorjs_paragraph_i18n",
-  "version": "2.11.7",
+  "name": "@zeainc/editorjs-paragraph-i18n",
+  "version": "1.0.0",
   "keywords": [
     "codex editor",
     "paragraph",
     "i18n",
+    "localization",
     "internationalization",
     "editor.js",
     "editorjs"

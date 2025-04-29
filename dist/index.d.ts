@@ -1,4 +1,4 @@
-import { API, ConversionConfig, HTMLPasteEvent, PasteConfig, SanitizerConfig, ToolConfig, ToolboxConfig } from '@editorjs/editorjs';
+import { API, HTMLPasteEvent, PasteConfig, SanitizerConfig, ToolConfig, ToolboxConfig } from '@editorjs/editorjs';
 
 /**
  * Base Paragraph Block for the Editor.js.
@@ -62,10 +62,6 @@ interface Paragraph_i18n_Params {
      */
     readOnly: boolean;
     /**
-     * Which language is currently active.
-     */
-    activeLanguage: 'en' | 'fr' | 'es';
-    /**
      * Provide a trasnlation callback to the paragraph tool.
      */
     autoTranslate: LanguageTranslator;
@@ -86,8 +82,6 @@ export default class Paragraph_i18n {
      * Is Paragraph Tool read-only
      */
     readOnly: boolean;
-    activeLanguage: Language;
-    autoTranslate: LanguageTranslator | null;
     /**
      * Paragraph Tool's CSS classes
      */
@@ -155,7 +149,6 @@ export default class Paragraph_i18n {
      * @public
      */
     validate(savedData: Paragraph_i18n_Data): boolean;
-    translate(targetLanguage: Language): Promise<boolean>;
     /**
      * Extract Tool's data from the view
      *
@@ -171,10 +164,22 @@ export default class Paragraph_i18n {
      */
     onPaste(event: HTMLPasteEvent): void;
     /**
+     * Normalize input data
+     *
+     * @param {Header_i18n_Data} data - saved data to process
+     *
+     * @returns {Header_i18n_Data}
+     * @private
+     */
+    normalizeData(data: Paragraph_i18n_Data | {}): Paragraph_i18n_Data;
+    /**
      * Enable Conversion Toolbar. Paragraph can be converted to/from other tools
      * @returns {ConversionConfig}
      */
-    static get conversionConfig(): ConversionConfig;
+    static get conversionConfig(): {
+        export: (data: Paragraph_i18n_Data) => string;
+        import: (data: any) => any;
+    };
     /**
      * Sanitizer rules
      * @returns {SanitizerConfig} - Edtior.js sanitizer config

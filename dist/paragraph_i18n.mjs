@@ -1,8 +1,8 @@
 (function(){"use strict";try{if(typeof document<"u"){var e=document.createElement("style");e.appendChild(document.createTextNode(".ce-paragraph{line-height:1.6em;outline:none}.ce-block:only-of-type .ce-paragraph[data-placeholder-active]:empty:before,.ce-block:only-of-type .ce-paragraph[data-placeholder-active][data-empty=true]:before{content:attr(data-placeholder-active)}.ce-paragraph p:first-of-type{margin-top:0}.ce-paragraph p:last-of-type{margin-bottom:0}")),document.head.appendChild(e)}}catch(a){console.error("vite-plugin-css-injected-by-js",a)}})();
-const o = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M8 9V7.2C8 7.08954 8.08954 7 8.2 7L12 7M16 9V7.2C16 7.08954 15.9105 7 15.8 7L12 7M12 7L12 17M12 17H10M12 17H14"/></svg>';
-function h(r) {
+const l = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M8 9V7.2C8 7.08954 8.08954 7 8.2 7L12 7M16 9V7.2C16 7.08954 15.9105 7 15.8 7L12 7M12 7L12 17M12 17H10M12 17H14"/></svg>';
+function c(i) {
   const t = document.createElement("div");
-  t.innerHTML = r.trim();
+  t.innerHTML = i.trim();
   const e = document.createDocumentFragment();
   return e.append(...Array.from(t.childNodes)), e;
 }
@@ -14,8 +14,8 @@ function h(r) {
  * @copyright CodeX 2018
  * @license The MIT License (MIT)
  */
-let i = "en";
-const n = [];
+let n = "en";
+const r = [];
 class s {
   /**
    * Render plugin`s main Element and fill it with saved data
@@ -26,13 +26,13 @@ class s {
    * @param {object} params.api - editor.js api
    * @param {boolean} readOnly - read only mode flag
    */
-  constructor({ data: t, config: e, api: a, readOnly: l }) {
-    this.activeLanguage = "en", this.autoTranslate = null, this._data = { translations: {} }, this.api = a, this.readOnly = l, this._CSS = {
+  constructor({ data: t, config: e, api: a, readOnly: o }) {
+    this._data = { translations: {} }, this.api = a, this.readOnly = o, this._CSS = {
       block: this.api.styles.block,
       wrapper: "ce-paragraph"
-    }, this.readOnly || (this.onKeyUp = this.onKeyUp.bind(this)), this._placeholder = e.placeholder ? e.placeholder : s.DEFAULT_PLACEHOLDER, t ? t.translations === void 0 ? this._data.translations[this.activeLanguage] = t.text ?? "" : this._data.translations = t.translations : this._data.translations[this.activeLanguage] = "", this._data.translations[this.activeLanguage] == null && (this._data.translations[this.activeLanguage] = ""), this._element = null, this._preserveBlank = e.preserveBlank ?? !1, n.push(() => {
-      this.activeLanguage = i, window.requestAnimationFrame(() => {
-        this._element && (this._element.innerHTML = this._data.translations[this.activeLanguage] || "");
+    }, this.readOnly || (this.onKeyUp = this.onKeyUp.bind(this)), this._placeholder = e.placeholder ? e.placeholder : s.DEFAULT_PLACEHOLDER, t ? this._data = this.normalizeData(t) : this._data.translations[n] = "", this._element = null, this._preserveBlank = e.preserveBlank ?? !1, r.push(() => {
+      window.requestAnimationFrame(() => {
+        this._element && (this._element.innerHTML = this._data.translations[n] || "");
       });
     });
   }
@@ -65,7 +65,7 @@ class s {
    */
   drawView() {
     const t = document.createElement("DIV");
-    return t.classList.add(this._CSS.wrapper, this._CSS.block), t.contentEditable = "false", t.dataset.placeholderActive = this.api.i18n.t(this._placeholder), this._data.translations[this.activeLanguage] && (t.innerHTML = this._data.translations[this.activeLanguage]), this.readOnly || (t.contentEditable = "true", t.addEventListener("keyup", this.onKeyUp)), t;
+    return t.classList.add(this._CSS.wrapper, this._CSS.block), t.contentEditable = "false", t.dataset.placeholderActive = this.api.i18n.t(this._placeholder), this._data.translations[n] && (t.innerHTML = this._data.translations[n]), this.readOnly || (t.contentEditable = "true", t.addEventListener("keyup", this.onKeyUp)), t;
   }
   /**
    * Return Tool's view
@@ -85,8 +85,8 @@ class s {
   merge(t) {
     if (!this._element)
       return;
-    this._data.translations[this.activeLanguage] += t.translations[this.activeLanguage];
-    const e = h(t.translations[this.activeLanguage]);
+    this._data.translations[n] += t.translations[n];
+    const e = c(t.translations[n]);
     this._element.appendChild(e), this._element.normalize();
   }
   /**
@@ -98,17 +98,7 @@ class s {
    * @public
    */
   validate(t) {
-    return console.log("validate"), !(t.translations[this.activeLanguage].trim() === "" && !this._preserveBlank);
-  }
-  async translate(t) {
-    if (!this.autoTranslate)
-      return !1;
-    const e = this._data.translations[this.activeLanguage], a = await this.autoTranslate(
-      e,
-      this.activeLanguage,
-      t
-    );
-    return this._data.translations[t] || (this._data.translations[t] = ""), this._data.translations[t] = a, !0;
+    return !(t.translations[n].trim() === "" && !this._preserveBlank);
   }
   /**
    * Extract Tool's data from the view
@@ -118,7 +108,7 @@ class s {
    * @public
    */
   save(t) {
-    return this._data.translations[this.activeLanguage] = t.innerHTML, this._data;
+    return this._data.translations[n] = t.innerHTML, this._data;
   }
   /**
    * On paste callback fired from Editor.
@@ -129,9 +119,36 @@ class s {
     const e = {
       text: t.detail.data.innerHTML
     };
-    this._data.translations[this.activeLanguage] = e.text, window.requestAnimationFrame(() => {
-      this._element && (this._element.innerHTML = this._data.translations[this.activeLanguage] || "");
+    this._data.translations[n] = e.text, window.requestAnimationFrame(() => {
+      this._element && (this._element.innerHTML = this._data.translations[n] || "");
     });
+  }
+  /**
+   * Normalize input data
+   *
+   * @param {Header_i18n_Data} data - saved data to process
+   *
+   * @returns {Header_i18n_Data}
+   * @private
+   */
+  normalizeData(t) {
+    if (typeof t == "string") {
+      const e = t;
+      return {
+        translations: { [n]: e }
+      };
+    } else if (typeof t.text == "string") {
+      const e = t.text;
+      return {
+        translations: { [n]: e }
+      };
+    } else if (typeof t.translations == "object") {
+      const e = t;
+      return e.translations[n] == null && (e.translations[n] = ""), e;
+    }
+    return console.warn("Paragraph_i18n: unable to normalize data:", t), {
+      translations: { [n]: "" }
+    };
   }
   /**
    * Enable Conversion Toolbar. Paragraph can be converted to/from other tools
@@ -139,10 +156,15 @@ class s {
    */
   static get conversionConfig() {
     return {
-      export: "text",
-      // to convert Paragraph to other block, use 'text' property of saved data
-      import: "text"
-      // to covert other block's exported string to Paragraph, fill 'text' property of tool data
+      export: (t) => t.translations[n],
+      import: (t) => {
+        if (console.log(t), typeof t == "string")
+          return t;
+        if (t.text)
+          return t.text;
+        if (t.translations)
+          return t.translations[n];
+      }
     };
   }
   /**
@@ -182,15 +204,15 @@ class s {
    */
   static get toolbox() {
     return {
-      icon: o,
+      icon: l,
       title: "Text"
     };
   }
   static getActiveLanguage() {
-    return i;
+    return n;
   }
   static setActiveLanguage(t) {
-    i = t, n.forEach((e) => {
+    n = t, r.forEach((e) => {
       e();
     });
   }
